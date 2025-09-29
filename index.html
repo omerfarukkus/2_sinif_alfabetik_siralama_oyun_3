@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2. Sınıf Alfabe Macerası - Kutuyu Aç</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #f0f4f8; /* Açık mavi-gri arka plan */
+        }
+        .box {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .box:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .box.opened {
+            transform: scale(0.95);
+            background-color: #e2e8f0 !important;
+            color: #94a3b8;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        #question-modal {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        .question-paper {
+             background-color: #ffffff;
+             background-image: repeating-linear-gradient(to bottom, transparent 0px, transparent 39px, #e6f2ff 40px);
+             background-size: 100% 40px;
+             border-radius: 1rem;
+             padding: 2.5rem 2rem;
+             position: relative;
+             border: 1px solid #e2e8f0;
+        }
+        .question-paper::before {
+            content: '';
+            position: absolute;
+            top: 1rem;
+            left: 2rem;
+            bottom: 1rem;
+            width: 2px;
+            background-color: #ffdde0;
+        }
+        .sticky-note {
+            width: 160px;
+            height: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        .sticky-note:hover {
+            transform: scale(1.1) rotate(0deg) !important;
+            z-index: 10;
+        }
+        .pin {
+            width: 20px;
+            height: 20px;
+            background: #e53e3e;
+            border-radius: 50%;
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            border: 2px solid white;
+        }
+        .feedback-popup {
+            animation: fadeInOut 1.5s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: scale(0.8) translateY(20px); }
+            20%, 80% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="w-full max-w-4xl mx-auto">
+
+        <!-- Başlangıç Ekranı -->
+        <div id="start-screen" class="text-center p-8 bg-white rounded-2xl shadow-xl">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Alfabe Macerası</h1>
+            <p class="text-lg text-gray-600 mb-8">Kutuları aç ve soruları cevapla!</p>
+            <button id="start-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-10 rounded-full text-xl shadow-lg transform hover:scale-105 transition-transform">
+                Oyuna Başla
+            </button>
+        </div>
+        
+        <!-- Oyun Ekranı -->
+        <div id="game-screen" class="hidden">
+            <header class="flex justify-between items-center mb-6 p-4 bg-white rounded-2xl shadow-md">
+                <h1 class="text-xl md:text-2xl font-bold text-gray-700">Kutuyu Aç - 2. Sınıf Alfabetik Sıralama</h1>
+                <div class="flex items-center space-x-4">
+                    <div id="lives" class="flex space-x-1 text-3xl"></div>
+                    <div id="score" class="text-xl font-bold bg-yellow-300 text-yellow-800 px-4 py-1 rounded-full">Puan: 0</div>
+                </div>
+            </header>
+            <div id="box-grid" class="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                <!-- Kutular JS ile oluşturulacak -->
+            </div>
+        </div>
+        
+        <!-- Bitiş Ekranı -->
+        <div id="end-screen" class="hidden text-center p-8 bg-white rounded-2xl shadow-xl">
+             <h1 id="end-title" class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Oyun Bitti!</h1>
+             <p class="text-xl text-gray-600 mb-6">Toplam Puanın: <span id="final-score" class="font-bold"></span></p>
+             <button id="restart-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-10 rounded-full text-xl shadow-lg transform hover:scale-105 transition-transform">
+                 Yeniden Oyna
+             </button>
+        </div>
+
+    </div>
+
+    <!-- Soru Modalı -->
+    <div id="question-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 opacity-0 transform scale-95">
+        <div class="w-full max-w-3xl">
+            <div class="question-paper">
+                <p id="question-text" class="text-2xl md:text-3xl text-center font-semibold text-gray-800"></p>
+            </div>
+            <div id="options-container" class="flex flex-wrap justify-center items-center gap-6 mt-8">
+                <!-- Seçenekler (yapışkan notlar) JS ile oluşturulacak -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Geri bildirim pop-up'ı için konteyner -->
+    <div id="feedback-container" class="fixed bottom-10 left-1/2 -translate-x-1/2"></div>
+
+
+    <script>
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const endScreen = document.getElementById('end-screen');
+        const startButton = document.getElementById('start-button');
+        const restartButton = document.getElementById('restart-button');
+        const boxGrid = document.getElementById('box-grid');
+        const livesEl = document.getElementById('lives');
+        const scoreEl = document.getElementById('score');
+        const finalScoreEl = document.getElementById('final-score');
+        const endTitleEl = document.getElementById('end-title');
+        const questionModal = document.getElementById('question-modal');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const feedbackContainer = document.getElementById('feedback-container');
+
+        const questions = [
+            { question: "Hangi varlık sözlükte diğerlerinden <strong>önce</strong> gelir?", options: ["Güneş", "Ay", "Yıldız"], correctAnswer: "Ay" },
+            { question: "'Telefon, tablet, televizyon' kelimeleri sözlükte nasıl sıralanır?", options: ["Tablet-Telefon-Televizyon", "Telefon-Tablet-Televizyon", "Televizyon-Tablet-Telefon"], correctAnswer: "Tablet-Telefon-Televizyon" },
+            { question: "Hangi mevsimin adı alfabede en <strong>sonda</strong> yer alır?", options: ["İlkbahar", "Yaz", "Sonbahar"], correctAnswer: "Yaz" },
+            { question: "Alfabemizin 17. harfi hangisidir?", options: ["N", "O", "M"], correctAnswer: "N" },
+            { question: "'Uçak, Gemi, Araba' kelimelerinden hangisi sözlükte <strong>ikinci</strong> sıradadır?", options: ["Gemi", "Uçak", "Araba"], correctAnswer: "Gemi" },
+            { question: "Alfabemizde 'R' harfinden bir sonra hangi harf gelir?", options: ["S", "Ş", "P"], correctAnswer: "S" },
+            { question: "Hangi sayının okunuşu sözlükte en <strong>başta</strong> yer alır?", options: ["Beş", "Bir", "Dokuz"], correctAnswer: "Beş" },
+            { question: "'C, Ç, D, ?, F' harf sırasında boşluğa ne gelmelidir?", options: ["E", "G", "B"], correctAnswer: "E" },
+            { question: "Hangi geometrik şeklin adı sözlükte diğerlerinden <strong>önce</strong> gelir?", options: ["Daire", "Üçgen", "Kare"], correctAnswer: "Daire" },
+            { question: "Hangi müzik aletinin adı sözlükte en <strong>sonda</strong> yer alır?", options: ["Gitar", "Piyano", "Keman"], correctAnswer: "Piyano" },
+            { question: "'Aslan, kaplan, fil' hayvanlarından hangisi sözlükte <strong>ortada</strong> yer alır?", options: ["Fil", "Kaplan", "Aslan"], correctAnswer: "Fil" },
+            { question: "Alfabemizde 'J' harfinden bir önceki harf hangisidir?", options: ["İ", "K", "H"], correctAnswer: "İ" }
+        ];
+
+        let score, lives, shuffledQuestions, openedBoxes;
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startGame() {
+            score = 0;
+            lives = 4;
+            openedBoxes = 0;
+            shuffledQuestions = shuffleArray([...questions]);
+
+            updateScore();
+            updateLives();
+            setupBoxes();
+
+            startScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+        }
+
+        function setupBoxes() {
+            boxGrid.innerHTML = '';
+            const boxColors = ['bg-pink-400', 'bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-purple-400', 'bg-red-400', 'bg-indigo-400', 'bg-teal-400', 'bg-orange-400'];
+
+            for (let i = 0; i < 12; i++) {
+                const box = document.createElement('div');
+                box.textContent = i + 1;
+                box.dataset.questionIndex = i;
+                box.className = `box flex items-center justify-center text-4xl font-bold text-white h-24 sm:h-32 rounded-2xl shadow-lg ${shuffleArray([...boxColors])[i % boxColors.length]}`;
+                box.addEventListener('click', handleBoxClick);
+                boxGrid.appendChild(box);
+            }
+        }
+        
+        function handleBoxClick(event) {
+            const box = event.currentTarget;
+            if (box.classList.contains('opened')) return;
+
+            const questionIndex = parseInt(box.dataset.questionIndex);
+            box.classList.add('opened');
+            openedBoxes++;
+            
+            showQuestion(shuffledQuestions[questionIndex]);
+        }
+
+        function showQuestion(question) {
+            questionText.innerHTML = question.question;
+            optionsContainer.innerHTML = '';
+
+            const stickyColors = [
+                {bg: 'bg-green-200', pin: 'bg-green-500', rotate: 'transform -rotate-3'},
+                {bg: 'bg-pink-200', pin: 'bg-pink-500', rotate: 'transform rotate-2'},
+                {bg: 'bg-blue-200', pin: 'bg-blue-500', rotate: 'transform rotate-4'}
+            ];
+            const shuffledOptions = shuffleArray([...question.options]);
+
+            shuffledOptions.forEach((option, index) => {
+                const note = document.createElement('div');
+                note.innerHTML = `<div class="pin" style="background-color: ${stickyColors[index].pin};"></div><span>${option}</span>`;
+                note.className = `sticky-note ${stickyColors[index].bg} ${stickyColors[index].rotate}`;
+                note.addEventListener('click', () => selectAnswer(option, question.correctAnswer));
+                optionsContainer.appendChild(note);
+            });
+            
+            questionModal.classList.remove('hidden');
+            setTimeout(() => {
+                questionModal.classList.remove('opacity-0', 'scale-95');
+            }, 10);
+        }
+
+        function selectAnswer(selectedOption, correctAnswer) {
+            const isCorrect = selectedOption === correctAnswer;
+
+            if (isCorrect) {
+                score += 10;
+                showFeedback('Doğru! 🎉', 'bg-green-500');
+            } else {
+                lives--;
+                showFeedback('Yanlış! 😟', 'bg-red-500');
+            }
+            
+            updateScore();
+            updateLives();
+            hideQuestion();
+            
+            setTimeout(() => {
+                 if (lives <= 0 || openedBoxes === 12) {
+                    endGame();
+                }
+            }, 500);
+        }
+
+        function hideQuestion() {
+             questionModal.classList.add('opacity-0', 'scale-95');
+             setTimeout(() => {
+                questionModal.classList.add('hidden');
+             }, 300);
+        }
+        
+        function showFeedback(message, bgColor) {
+            const feedbackEl = document.createElement('div');
+            feedbackEl.textContent = message;
+            feedbackEl.className = `feedback-popup text-white font-bold text-2xl py-3 px-6 rounded-full shadow-xl ${bgColor}`;
+            feedbackContainer.innerHTML = '';
+            feedbackContainer.appendChild(feedbackEl);
+
+            // Geri bildirimin animasyon bittikten sonra kaybolmasını sağla
+            setTimeout(() => {
+                // Konteynerde hala aynı geri bildirim varsa temizle
+                if (feedbackContainer.firstChild === feedbackEl) {
+                    feedbackContainer.innerHTML = '';
+                }
+            }, 1450); // Animasyon süresi 1.5s
+        }
+
+        function updateScore() {
+            scoreEl.textContent = `Puan: ${score}`;
+        }
+
+        function updateLives() {
+            livesEl.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                const heart = document.createElement('span');
+                heart.textContent = i < lives ? '❤️' : '🤍';
+                if (i >= lives) heart.classList.add('opacity-40');
+                livesEl.appendChild(heart);
+            }
+        }
+        
+        function endGame() {
+            gameScreen.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+            finalScoreEl.textContent = score;
+            
+            if (lives === 0) {
+                 endTitleEl.textContent = "Tekrar Dene! 👍";
+            } else if (score >= 90) {
+                endTitleEl.textContent = "Harikasın! 🏆";
+            } else {
+                 endTitleEl.textContent = "Çok İyi! 😊";
+            }
+        }
+
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', startGame);
+
+    </script>
+</body>
+</html>
+
+
+
